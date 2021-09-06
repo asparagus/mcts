@@ -1,4 +1,3 @@
-import cProfile
 from mcts.environments import connect_four
 from mcts import agent
 from mcts import environment
@@ -60,6 +59,5 @@ if __name__ == '__main__':
         competitor_a=agents[args.a](1),
         competitor_b=agents[args.b](2),
     )
-    cProfile.runctx("tournament.run(args.n)", globals(), locals())
-    # results_a, results_b = tournament.run(args.n)
-    # print('Tournament results: %s / %s' % (results_a, results_b))
+    results_a, results_b = tournament.run(args.n)
+    print('Tournament results: %s / %s' % (results_a, results_b))

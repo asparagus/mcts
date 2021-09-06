@@ -1,6 +1,6 @@
 import copy
 import random
-from typing import Optional
+from typing import Optional, Tuple
 
 import numpy as np
 
@@ -18,10 +18,11 @@ class ConnectFourState(environment.State):
         2: 'O',
     }
 
-    def __init__(self, player_turn: int, board: np.ndarray, winner: Optional[int] = None):
+    def __init__(self, player_turn: int, board: Tuple[Tuple[int]], board_height: int, winner: Optional[int] = None):
         """Initialize a Connect Four board state."""
         self.player_turn = player_turn
         self.board = board
+        self.board_height = board_height
         self.winner = winner
         self._hash = None
 
@@ -30,66 +31,125 @@ class ConnectFourState(environment.State):
         if self.winner:
             return []
         # Zeros are empty slots
-        open_indices = np.flatnonzero(np.min(self.board, axis=1) == 0)
-        return list(open_indices)
+        open_indices = [
+            col_idx for col_idx, col in enumerate(self.board)
+            if len(col) < self.board_height - 1
+        ]
+        return open_indices
 
     def step(self, action: int) -> 'ConnectFourState':
         """Return a new state resulting of applying the given action."""
-        new = copy.deepcopy(self)
+        new = ConnectFourState(
+            player_turn=self.player_turn,
+            board=self.board,
+            board_height=self.board_height,
+            winner=self.winner,
+        )
         new._step(action)
         return new
 
     def _step(self, action: int) -> None:
         """Apply the given action in place."""
-        col = action
-        row = np.argmin(self.board[col])
-        self.board[col, row] = self.player_turn 
-        if self.check_victory(last_move=(col, row)):
+        column = action
+        self._place_chip(column, self.player_turn)
+        if self.check_victory(last_move=column):
             self.winner = self.player_turn
         self.player_turn = self.player_turn % 2 + 1
 
-    def check_victory(self, last_move: (int, int)) -> bool:
+    def _place_chip(self, column: int, player: int) -> None:
+        columns = list(self.board)
+        columns[column] += (self.player_turn,)
+        self.board = tuple(columns)
+
+    def get_slot(self, column, row):
+        if 0 <= column < len(self.board):
+            if 0 <= row < len(self.board[column]):
+                return self.board[column][row]
+        return None
+
+    def check_victory(self, last_move: int) -> bool:
         """Check whether this is a winning position, given the last move."""
         board = self.board
-        c, r = last_move
-        player = board[c, r]
-        # Check vertical
-        south_diagonal_counter = 0
-        north_diagonal_counter = 0
-        vertical_counter = 0
-        horizontal_counter = 0
-        for i in range(-3, 4):
-            if 0 <= c + i < len(board):
-                horizontal_counter = horizontal_counter + 1 if board[c + i, r] == player else 0
-                if 0 <= r + i < len(board[0]):
-                    south_diagonal_counter = south_diagonal_counter + 1 if board[c + i, r + i] == player else 0
-                if 0 <= r - i < len(board[0]):
-                    north_diagonal_counter = north_diagonal_counter + 1 if board[c + i, r - i] == player else 0
-            if 0 <= r + i < len(board[0]):
-                vertical_counter = vertical_counter + 1 if board[c, r + i] == player else 0
-            if max(horizontal_counter, vertical_counter,
-                   south_diagonal_counter, north_diagonal_counter) == 4:
-                return True
+        c = last_move
+        r = len(board[c]) - 1
+        player = self.get_slot(c, r)
+
+        # Vertical
+        vertical_counter = 1
+        for i in range(1, 4):
+            current = self.get_slot(c, r - i)
+            if current == player:
+                vertical_counter += 1
+            else:
+                break
+        if vertical_counter >= 4:
+            return True
+
+        # Horizontal
+        horizontal_counter = 1
+        for i in range(1, 4):
+            current = self.get_slot(c + i, r)
+            if current == player:
+                horizontal_counter += 1
+            else:
+                break
+        for i in range(1, 4):
+            current = self.get_slot(c - i, r)
+            if current == player:
+                horizontal_counter += 1
+            else:
+                break
+        if horizontal_counter >= 4:
+            return True
+
+        south_diagonal_counter = 1
+        for i in range(1, 4):
+            current = self.get_slot(c + i, r + i)
+            if current == player:
+                south_diagonal_counter += 1
+            else:
+                break
+        for i in range(1, 4):
+            current = self.get_slot(c - i, r - i)
+            if current == player:
+                south_diagonal_counter += 1
+            else:
+                break
+        if south_diagonal_counter >= 4:
+            return True
+
+        north_diagonal_counter = 1
+        for i in range(1, 4):
+            current = self.get_slot(c + i, r - i)
+            if current == player:
+                north_diagonal_counter += 1
+            else:
+                break
+        for i in range(1, 4):
+            current = self.get_slot(c - i, r + i)
+            if current == player:
+                north_diagonal_counter += 1
+            else:
+                break
+        if north_diagonal_counter >= 4:
+            return True
         return False
 
     def __hash__(self):
         if self._hash is None:
-            self._hash = hash(str(self))
+            self._hash = hash(self.board)
         return self._hash
 
     def __eq__(self, other):
-        if self.player_turn != other.player_turn:
-            return False
-        if self.winner != other.winner:
-            return False
-        return np.array_equal(self.board, other.board)
+        return self.board == other.board
 
     def __str__(self):
         """String representation of this board."""
         player_turn = 'player %s\'s turn' % self.player_turn
         board = ''
-        for row_idx in range(self.board.shape[1] - 1, -1, -1):
-            row = self.board[:, row_idx]
+        for row_idx in range(self.board_height - 1, -1, -1):
+            row = ['.' if len(column) < row_idx else ('X' if column[row_idx] == 1 else 'O')
+                   for column in self.board]
             board += ''.join([self.VISUALIZATION[val] for val in row]) + '\n'
         return self.SEPARATOR.join([self.HEADER, player_turn, board])
 
@@ -98,11 +158,13 @@ class ConnectFour(environment.Environment):
     """Connect four game."""
 
     def __init__(self, board_width: int, board_height: int):
-        self.shape = (board_width, board_height)
+        self.board_width = board_width
+        self.board_height = board_height
 
     def initialize(self):
         return ConnectFourState(
             player_turn=random.randint(1, 2),
-            board=np.zeros(shape=self.shape, dtype=np.float32),
+            board=tuple([(),] * self.board_width),
+            board_height=self.board_height,
             winner=None,
         )

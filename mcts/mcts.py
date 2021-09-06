@@ -4,7 +4,7 @@ import numpy as np
 
 class MCTS:
 
-    def __init__(self, evaluation_fn, num_rollouts=1000):
+    def __init__(self, evaluation_fn, num_rollouts=10000):
         self.counters = {}
         self.evals = {}
         self.evaluation_fn = evaluation_fn
