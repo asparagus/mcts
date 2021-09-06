@@ -25,8 +25,8 @@ class MCTS:
         actions = state.actions()
         possible_states = [state.step(a) for a in actions]
         estimated_values = [self.estimate(s) for s in possible_states]
-        argmax = np.argmax(estimated_values)
-        return actions[argmax]
+        # Pick greedily
+        return actions[np.argmax(estimated_values)]
 
     def select(self, state):
         """Select a state to rollout from."""
@@ -35,6 +35,7 @@ class MCTS:
         while (current_state in self.counters
                and not current_state.is_final):
             actions = current_state.actions()
+            # Selection - uniform distribution
             action = random.choice(actions)
             current_state = current_state.step(action)
             chain.append(current_state)
@@ -45,6 +46,7 @@ class MCTS:
         current_state = state
         while not current_state.is_final:
             actions = current_state.actions()
+            # Light rollout - uniform distribution
             action = random.choice(actions)
             current_state = current_state.step(action)
         return current_state
