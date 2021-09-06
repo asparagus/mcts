@@ -1,41 +1,56 @@
 import random
+import time
 import numpy as np
 
 
 class MCTS:
+    """Monte Carlo Tree Search."""
 
-    def __init__(self, evaluation_fn, num_rollouts=10000):
+    def __init__(self, evaluation_fn, timeout_ms=1000):
         self.counters = {}
         self.evals = {}
         self.evaluation_fn = evaluation_fn
-        self.num_rollouts = num_rollouts
+        self.timeout_ms = timeout_ms
 
     def search(self, state):
-        actions = state.actions()
-        for i in range(self.num_rollouts):
-            action = random.choice(actions)
-            next_state = state.step(action)
-            states = self.rollout(next_state)
-            evaluation = self.evaluation_fn(states[-1])
-            self.update(states, evaluation)
+        start_time = time.monotonic()
+        steps = 0
+        while (time.monotonic() - start_time) * 1000 < self.timeout_ms:
+            chain = self.select(state)
+            final_state = self.rollout(chain[-1])
+            evaluation = self.evaluation_fn(final_state)
+            self.update(chain, evaluation)
+            steps += 1
 
+        actions = state.actions()
         possible_states = [state.step(a) for a in actions]
         estimated_values = [self.estimate(s) for s in possible_states]
         argmax = np.argmax(estimated_values)
         return actions[argmax]
 
-    def rollout(self, state):
-        states = [state]
-        while not states[-1].is_final:
-            actions = states[-1].actions()
+    def select(self, state):
+        chain = [state]
+        current_state = state
+        while (current_state in self.counters
+               and not current_state.is_final):
+            actions = current_state.actions()
             action = random.choice(actions)
-            states.append(states[-1].step(action))
-        return states
+            current_state = current_state.step(action)
+            chain.append(current_state)
+        return chain
+
+    def rollout(self, state):
+        current_state = state
+        while not current_state.is_final:
+            actions = current_state.actions()
+            action = random.choice(actions)
+            current_state = current_state.step(action)
+        return current_state
 
     def update(self, states, evaluation):
         for s in states:
             self.counters[s] = self.counters.get(s, 0) + 1
-            self.evals[s] = self.counters.get(s, 0) + evaluation
+            self.evals[s] = self.evals.get(s, 0) + evaluation
 
     def estimate(self, state):
         if state in self.counters:

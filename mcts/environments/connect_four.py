@@ -13,7 +13,7 @@ class ConnectFourState(environment.State):
     HEADER = 'player 1: X\nplayer 2: O'
     SEPARATOR = '\n-------\n'
     VISUALIZATION = {
-        0: '.',
+        None: '.',
         1: 'X',
         2: 'O',
     }
@@ -148,8 +148,7 @@ class ConnectFourState(environment.State):
         player_turn = 'player %s\'s turn' % self.player_turn
         board = ''
         for row_idx in range(self.board_height - 1, -1, -1):
-            row = ['.' if len(column) < row_idx else ('X' if column[row_idx] == 1 else 'O')
-                   for column in self.board]
+            row = [self.get_slot(col_idx, row_idx) for col_idx, column in enumerate(self.board)]
             board += ''.join([self.VISUALIZATION[val] for val in row]) + '\n'
         return self.SEPARATOR.join([self.HEADER, player_turn, board])
 
