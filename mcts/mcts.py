@@ -6,11 +6,12 @@ import numpy as np
 class MCTS:
     """Monte Carlo Tree Search."""
 
-    def __init__(self, evaluation_fn, timeout_ms=10):
+    def __init__(self, evaluation_fn, exploration_constant=0, timeout_ms=10):
         """Initialize the search with a given evaluation and timeout."""
         self.counters = {}
         self.evals = {}
         self.evaluation_fn = evaluation_fn
+        self.exploration_constant = exploration_constant
         self.timeout_ms = timeout_ms
 
     def search(self, state):
@@ -34,10 +35,8 @@ class MCTS:
         current_state = state
         while (current_state in self.counters
                and not current_state.is_final):
-            actions = current_state.actions()
-            # Selection - uniform distribution
-            action = random.choice(actions)
-            current_state = current_state.step(action)
+            # Selection - ucb argmax
+            current_state = self.ucb(current_state)
             chain.append(current_state)
         return chain
 
@@ -62,3 +61,22 @@ class MCTS:
         if state in self.counters:
             return self.evals[state] / self.counters[state]
         return float('-inf')
+
+    def ucb(self, state):
+        """Upper confidence bound child selection."""
+        actions = state.actions()
+        possible_states = [state.step(a) for a in actions]
+        estimated_values = [self.estimate(s) for s in possible_states]
+        exploration_values = [self.exploration_constant * self.exploration(state, s)
+                              for s in possible_states]
+        combined_values = [v + e for v, e in zip(estimated_values, exploration_values)]
+        return possible_states[np.argmax(combined_values)]
+
+    def exploration(self, parent_state, state):
+        """Exploration value for ucb."""
+        if state not in self.counters or parent_state not in self.counters:
+            return float('inf')
+        return np.sqrt(
+            2 * np.log(self.counters[parent_state]) /
+            self.counters[state]
+        )
