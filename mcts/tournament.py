@@ -1,3 +1,4 @@
+import cProfile
 from mcts.environments import connect_four
 from mcts import agent
 from mcts import environment
@@ -42,6 +43,8 @@ if __name__ == '__main__':
 
     def player_evaluation_fn(player: int):
         def evaluation_fn(state: environment.State):
+            if state.winner is None:
+                return 0
             return 1 if state.winner == player else -1
         return evaluation_fn
 
@@ -57,5 +60,6 @@ if __name__ == '__main__':
         competitor_a=agents[args.a](1),
         competitor_b=agents[args.b](2),
     )
-    results_a, results_b = tournament.run(args.n)
-    print('Tournament results: %s / %s' % (results_a, results_b))
+    cProfile.runctx("tournament.run(args.n)", globals(), locals())
+    # results_a, results_b = tournament.run(args.n)
+    # print('Tournament results: %s / %s' % (results_a, results_b))
