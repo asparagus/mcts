@@ -1,4 +1,5 @@
 from mcts.environments import connect_four
+from mcts.environments import tic_tac_toe
 from mcts import agent
 from mcts import environment
 from mcts import mcts
@@ -35,6 +36,7 @@ if __name__ == '__main__':
         description='Script for running a competition between agents.')
     parser.add_argument(
         '--n', type=int, default=100, help='Number of iterations to run.')
+    parser.add_argument('game', help='Game, one of "tic_tac_toe", "connect_four"')
     parser.add_argument('a', help='Competitor, one of "human", "random", "mcts"')
     parser.add_argument('b', help='Competitor, one of "human", "random", "mcts"')
     args = parser.parse_args()
@@ -47,13 +49,17 @@ if __name__ == '__main__':
             return 1 if state.winner == player else -1
         return evaluation_fn
 
+    games = {
+        'tic_tac_toe': tic_tac_toe.TicTacToe(),
+        'connect_four': connect_four.ConnectFour(board_width=8, board_height=7),
+    }
     agents = {
         'human': lambda player: agent.HumanAgent(),
         'random': lambda player: agent.RandomAgent(),
         'mcts': lambda player: agent.MCTSAgent(player_evaluation_fn(player)),
     }
     result_sum = 0
-    game = connect_four.ConnectFour(board_width=8, board_height=7)
+    game = games[args.game]
     tournament = Tournament(
         game=game,
         competitor_a=agents[args.a](1),

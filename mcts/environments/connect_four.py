@@ -1,9 +1,5 @@
-import copy
 import random
 from typing import Optional, Tuple
-
-import numpy as np
-
 from mcts import environment
 
 
